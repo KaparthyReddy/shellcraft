@@ -22,7 +22,11 @@ public class CdCommand implements ShellCommand {
             return 1;
         }
 
-        state.setCurrentDirectory(newDir.getAbsoluteFile());
+        try {
+            state.setCurrentDirectory(newDir.getCanonicalFile());
+        } catch (java.io.IOException e) {
+            state.setCurrentDirectory(newDir.getAbsoluteFile());
+        }
         return 0;
     }
 

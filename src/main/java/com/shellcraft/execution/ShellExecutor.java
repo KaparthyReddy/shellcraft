@@ -111,9 +111,24 @@ public class ShellExecutor {
                 builders.add(processRunner.buildProcessBuilder(stage, state.getCurrentDirectory()));
             }
 
-            // ProcessBuilder.startPipeline wires stdout of each process to
-            // stdin of the next using real OS pipes - this is the actual
-            // OS-level plumbing, not a Java-side byte-shuttling reimplementation.
+            // startPipeline only wires the INTERNAL stdout->stdin connections
+            // between stages - the outer ends (first stage's stdin, last
+            // stage's stdout/stderr) must be explicitly inherited here, or
+            // output silently vanishes into an unread pipe.
+            ParsedCommand firstStage = stages.get(0);
+            if (firstStage.getInputRedirection().isEmpty()) {
+                builders.get(0).redirectInput(ProcessBuilder.Redirect.INHERIT);
+            }
+
+            ParsedCommand lastStage = stages.get(stages.size() - 1);
+            ProcessBuilder lastBuilder = builders.get(builders.size() - 1);
+            if (lastStage.getOutputRedirection().isEmpty()) {
+                lastBuilder.redirectOutput(ProcessBuilder.Redirect.INHERIT);
+            }
+            for (ProcessBuilder builder : builders) {
+                builder.redirectError(ProcessBuilder.Redirect.INHERIT);
+            }
+
             List<Process> processes = ProcessBuilder.startPipeline(builders);
 
             if (background) {
